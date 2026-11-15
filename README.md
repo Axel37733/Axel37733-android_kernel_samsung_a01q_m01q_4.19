@@ -4,10 +4,8 @@ Port of the LineageOS/CAF msm8937 4.19 kernel (Redmi 7A, 4.19.325-cip135) to the
 
 ## Building
 
-    a01q-tools/build_a01.sh   # builds Image.gz (config: arch/arm64/configs/vendor/a01q.config)
-    a01q-tools/build_dtb.sh   # builds the device tree
-    a01q-tools/pack_los.sh    # packs boot.img using the ramdisk of a LineageOS boot.img
+    RAMDISK=/path/to/lineageos-boot-ramdisk a01q-tools/build.sh pack
 
-Toolchain: Proton clang 13. Keep the stock dtbo partition: the bootloader applies it on top of sdm439.dtb.
+Without `pack` it only builds Image.gz and the device tree. Toolchain: Proton clang 13 (set CLANG_DIR if it is not in ~/toolchains/proton-clang). Keep the stock dtbo partition: the bootloader applies it on top of sdm439.dtb.
 
 By AF220708
