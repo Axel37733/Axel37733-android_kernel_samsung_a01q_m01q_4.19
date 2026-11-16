@@ -331,6 +331,19 @@ static long smd_pkt_ioctl(struct file *file, unsigned int cmd,
 		/* Return success to not break userspace client logic */
 		ret = 0;
 		break;
+	case 0x5401: /* TCGETS: a01q: the Bluetooth HAL calls tcgetattr() on /dev/smd3; return an empty termios */
+		{
+			char a01q_termios[36] = { 0 }; /* sizeof(struct termios) on arm64 */
+
+			ret = copy_to_user((void __user *)arg, a01q_termios, sizeof(a01q_termios)) ? -EFAULT : 0;
+		}
+		break;
+	case 0x5402: /* TCSETS */
+	case 0x5403: /* TCSETSW */
+	case 0x5404: /* TCSETSF */
+	case 0x540B: /* TCFLSH: a01q: the Bluetooth HAL flushes /dev/smd3 with tcflush() */
+		ret = 0;
+		break;
 	default:
 		SMD_PKT_ERR("unrecognized ioctl command 0x%x\n", cmd);
 		ret = -ENOIOCTLCMD;
