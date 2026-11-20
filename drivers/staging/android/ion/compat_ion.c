@@ -99,6 +99,25 @@ static int compat_put_ion_allocation_data(
 	return err;
 }
 
+/* a01q: 32-bit layout of the legacy Qualcomm cache maintenance ioctls */
+struct compat_ion_flush_data {
+	compat_int_t handle;
+	compat_int_t fd;
+	compat_uptr_t vaddr;
+	compat_uint_t offset;
+	compat_uint_t length;
+};
+
+#define COMPAT_ION_IOC_CLEAN_CACHES	_IOWR(ION_IOC_MSM_MAGIC, 0, struct compat_ion_flush_data)
+#define COMPAT_ION_IOC_INV_CACHES	_IOWR(ION_IOC_MSM_MAGIC, 1, struct compat_ion_flush_data)
+#define COMPAT_ION_IOC_CLEAN_INV_CACHES	_IOWR(ION_IOC_MSM_MAGIC, 2, struct compat_ion_flush_data)
+
+struct compat_ion_custom_data {
+	compat_uint_t cmd;
+	compat_ulong_t arg;
+};
+#define COMPAT_ION_IOC_CUSTOM	_IOWR(ION_IOC_MAGIC, 6, struct compat_ion_custom_data)
+
 static long __a01_compat_ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	long ret;
@@ -144,6 +163,58 @@ static long __a01_compat_ion_ioctl(struct file *filp, unsigned int cmd, unsigned
 		return filp->f_op->unlocked_ioctl(filp, ION_IOC_FREE,
 							(unsigned long)data);
 	}
+	case COMPAT_ION_IOC_CUSTOM:
+	{
+		struct compat_ion_custom_data __user *data32 = compat_ptr(arg);
+		struct ion_custom_data __user *data;
+		compat_uint_t ucmd;
+		compat_ulong_t uarg;
+		int err;
+
+		data = compat_alloc_user_space(sizeof(*data));
+		if (!data)
+			return -EFAULT;
+
+		err = get_user(ucmd, &data32->cmd);
+		err |= get_user(uarg, &data32->arg);
+		err |= put_user(ucmd, &data->cmd);
+		err |= put_user((unsigned long)compat_ptr(uarg), &data->arg);
+		if (err)
+			return -EFAULT;
+
+		return filp->f_op->unlocked_ioctl(filp, ION_IOC_CUSTOM,
+						  (unsigned long)data);
+	}
+	case COMPAT_ION_IOC_CLEAN_CACHES:
+	case COMPAT_ION_IOC_INV_CACHES:
+	case COMPAT_ION_IOC_CLEAN_INV_CACHES:
+	{
+		struct compat_ion_flush_data __user *data32 = compat_ptr(arg);
+		struct ion_flush_data __user *data;
+		compat_int_t handle, fd;
+		unsigned int ncmd;
+		int err;
+
+		if (cmd == COMPAT_ION_IOC_CLEAN_CACHES)
+			ncmd = ION_IOC_CLEAN_CACHES;
+		else if (cmd == COMPAT_ION_IOC_INV_CACHES)
+			ncmd = ION_IOC_INV_CACHES;
+		else
+			ncmd = ION_IOC_CLEAN_INV_CACHES;
+
+		data = compat_alloc_user_space(sizeof(*data));
+		if (!data)
+			return -EFAULT;
+
+		err = get_user(handle, &data32->handle);
+		err |= get_user(fd, &data32->fd);
+		err |= put_user(handle, &data->handle);
+		err |= put_user(fd, &data->fd);
+		if (err)
+			return -EFAULT;
+
+		return filp->f_op->unlocked_ioctl(filp, ncmd, (unsigned long)data);
+	}
 	case ION_IOC_SHARE:
 	case ION_IOC_MAP:
 	case ION_IOC_IMPORT:
@@ -163,5 +234,8 @@ long compat_ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	long r = __a01_compat_ion_ioctl(filp, cmd, arg);
 	if (r < 0 && (strstr(current->comm, "qsee") || strstr(current->comm, "hardwar") || strstr(current->comm, "keymaster")))
 		pr_err("a01q ion: compat_ion_ioctl %s cmd=0x%x ret=%ld\n", current->comm, cmd, r);
+	if (r == -ENOTTY || r == -ENOIOCTLCMD)
+		pr_err_ratelimited("a01q ion: unhandled ioctl %s cmd=0x%x type=0x%02x nr=%u size=%u ret=%ld\n",
+				   current->comm, cmd, _IOC_TYPE(cmd), _IOC_NR(cmd), _IOC_SIZE(cmd), r);
 	return r;
 }

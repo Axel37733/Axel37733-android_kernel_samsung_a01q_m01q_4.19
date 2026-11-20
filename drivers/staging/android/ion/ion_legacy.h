@@ -96,6 +96,25 @@ struct ion_handle_data {
  */
 #define ION_IOC_IMPORT		_IOWR(ION_IOC_MAGIC, 5, struct ion_fd_data)
 
+/* a01q: legacy Qualcomm cache maintenance ioctls (msm_ion.h of the 4.9 kernel) */
+struct ion_flush_data {
+	ion_user_handle_t handle;
+	int fd;
+	void *vaddr;
+	unsigned int offset;
+	unsigned int length;
+};
+
+#define ION_IOC_CLEAN_CACHES	_IOWR(ION_IOC_MSM_MAGIC, 0, struct ion_flush_data)
+#define ION_IOC_INV_CACHES	_IOWR(ION_IOC_MSM_MAGIC, 1, struct ion_flush_data)
+#define ION_IOC_CLEAN_INV_CACHES	_IOWR(ION_IOC_MSM_MAGIC, 2, struct ion_flush_data)
+
+struct ion_custom_data {
+	unsigned int cmd;
+	unsigned long arg;
+};
+#define ION_IOC_CUSTOM	_IOWR(ION_IOC_MAGIC, 6, struct ion_custom_data)
+
 #endif /* CONFIG_ION_LEGACY */
 
 #endif /* _ION_LEGACY_H */
