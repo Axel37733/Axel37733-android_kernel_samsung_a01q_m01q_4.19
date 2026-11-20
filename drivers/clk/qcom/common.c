@@ -209,11 +209,36 @@ int qcom_cc_register_sleep_clk(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(qcom_cc_register_sleep_clk);
 
+/* a01q: the stock dtbo refers to the camera MCLKs by 4.9 clock hashes */
+static const struct {
+	u32 hash;
+	u32 idx;
+} a01q_camera_clk_hash[] = {
+	{ 0x266b3853, 159 }, /* MCLK0_CLK_SRC */
+	{ 0x80902deb, 103 }, /* GCC_CAMSS_MCLK0_CLK */
+	{ 0xa73cad0c, 160 }, /* MCLK1_CLK_SRC */
+	{ 0x5002d85f, 104 }, /* GCC_CAMSS_MCLK1_CLK */
+	{ 0x42545468, 161 }, /* MCLK2_CLK_SRC */
+	{ 0x222f8fff, 105 }, /* GCC_CAMSS_MCLK2_CLK */
+};
+
+static unsigned int a01q_camera_clk_xlate(unsigned int idx)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(a01q_camera_clk_hash); i++)
+		if (a01q_camera_clk_hash[i].hash == idx)
+			return a01q_camera_clk_hash[i].idx;
+	return idx;
+}
+
 static struct clk_hw *qcom_cc_clk_hw_get(struct of_phandle_args *clkspec,
 					 void *data)
 {
 	struct qcom_cc *cc = data;
 	unsigned int idx = clkspec->args[0];
+
+	idx = a01q_camera_clk_xlate(idx);
 
 	if (idx >= cc->num_rclks + cc->num_hwclks) {
 		pr_err("invalid index %u\n", idx);
