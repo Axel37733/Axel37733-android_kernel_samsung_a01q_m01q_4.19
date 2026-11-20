@@ -752,6 +752,12 @@ static int32_t msm_sensor_driver_is_special_support(
 	struct msm_camera_sensor_board_info *sensordata = s_ctrl->sensordata;
 
 	for (i = 0; i < sensordata->special_support_size; i++) {
+		if (!virt_addr_valid(sensordata->special_support_sensors[i])) {
+			pr_err("a01q: cam bad special_support_sensors[%d]=%px size=%d\n",
+				i, sensordata->special_support_sensors[i],
+				sensordata->special_support_size);
+			continue;
+		}
 		if (!strcmp(sensordata->special_support_sensors[i],
 						 sensor_name)) {
 			rc = TRUE;
@@ -1007,6 +1013,26 @@ int32_t msm_sensor_driver_probe(void *setting,
 	}
 
 	CDBG("s_ctrl[%d] %pK", slave_info->camera_id, s_ctrl);
+
+	pr_err("a01q: cam probe id=%d s_ctrl=%px s_ctrl_id=%d sensordata=%px size=%d sensor=%.32s\n",
+		slave_info->camera_id, s_ctrl, s_ctrl->id, s_ctrl->sensordata,
+		s_ctrl->sensordata ? s_ctrl->sensordata->special_support_size : -1,
+		slave_info->sensor_name);
+	{
+		int a01q_i;
+
+		for (a01q_i = 0; a01q_i < MAX_CAMERAS; a01q_i++) {
+			struct msm_sensor_ctrl_t *a01q_c = g_sctrl[a01q_i];
+			bool a01q_ok = a01q_c && virt_addr_valid(a01q_c);
+
+			pr_err("a01q: cam g_sctrl[%d]=%px ok=%d id=%d of=%px sd=%px i2c=%px\n",
+				a01q_i, a01q_c, a01q_ok,
+				a01q_ok ? (int)a01q_c->id : -1,
+				a01q_ok ? a01q_c->of_node : NULL,
+				a01q_ok ? a01q_c->sensordata : NULL,
+				a01q_ok ? a01q_c->sensor_i2c_client : NULL);
+		}
+	}
 
 	if (s_ctrl->sensordata->special_support_size > 0) {
 		if (!msm_sensor_driver_is_special_support(s_ctrl,
@@ -1507,6 +1533,10 @@ static int32_t msm_sensor_driver_platform_probe(struct platform_device *pdev)
 	s_ctrl->sensordata->power_info.dev = &pdev->dev;
 	return rc;
 FREE_S_CTRL:
+	/* a01q: do not leave a dangling pointer in g_sctrl */
+	if ((unsigned int)s_ctrl->id < MAX_CAMERAS &&
+		g_sctrl[s_ctrl->id] == s_ctrl)
+		g_sctrl[s_ctrl->id] = NULL;
 	kfree(s_ctrl);
 	return rc;
 }
